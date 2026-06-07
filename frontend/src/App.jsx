@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 function App() {
   const [tasks, setTasks] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -15,7 +16,8 @@ function App() {
   const loadTasks = () => {
     fetch("http://localhost:8080/api/tasks")
       .then((response) => response.json())
-      .then((data) => setTasks(data));
+      .then((data) => setTasks(data))
+      .catch(() => setMessage("Error loading tasks"));
   };
 
   useEffect(() => {
@@ -40,29 +42,40 @@ function App() {
     setEditingId(null);
   };
 
-  const saveTask = (event) => {
+  const saveTask = async (event) => {
     event.preventDefault();
 
-    const url = editingId
-      ? `http://localhost:8080/api/tasks/${editingId}`
-      : "http://localhost:8080/api/tasks";
+    try {
+      const url = editingId
+        ? `http://localhost:8080/api/tasks/${editingId}`
+        : "http://localhost:8080/api/tasks";
 
-    const method = editingId ? "PUT" : "POST";
+      const method = editingId ? "PUT" : "POST";
 
-    fetch(url, {
-      method: method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    }).then(() => {
+      await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      setMessage(
+        editingId
+          ? "Task updated successfully"
+          : "Task created successfully"
+      );
+
       loadTasks();
       resetForm();
-    });
+    } catch {
+      setMessage("Error saving task");
+    }
   };
 
   const editTask = (task) => {
     setEditingId(task.id);
+
     setForm({
       title: task.title,
       description: task.description,
@@ -72,15 +85,33 @@ function App() {
     });
   };
 
-  const deleteTask = (id) => {
-    fetch(`http://localhost:8080/api/tasks/${id}`, {
-      method: "DELETE",
-    }).then(() => loadTasks());
+  const deleteTask = async (id) => {
+    try {
+      await fetch(`http://localhost:8080/api/tasks/${id}`, {
+        method: "DELETE",
+      });
+
+      setMessage("Task deleted successfully");
+      loadTasks();
+    } catch {
+      setMessage("Error deleting task");
+    }
   };
 
   return (
     <div style={{ padding: "20px" }}>
       <h1>Task Manager</h1>
+
+      {message && (
+        <p
+          style={{
+            color: "lightgreen",
+            fontWeight: "bold",
+          }}
+        >
+          {message}
+        </p>
+      )}
 
       <h2>{editingId ? "Edit task" : "Add new task"}</h2>
 
@@ -101,13 +132,21 @@ function App() {
           required
         />
 
-        <select name="status" value={form.status} onChange={handleChange}>
+        <select
+          name="status"
+          value={form.status}
+          onChange={handleChange}
+        >
           <option value="TODO">TODO</option>
           <option value="IN_PROGRESS">IN_PROGRESS</option>
           <option value="DONE">DONE</option>
         </select>
 
-        <select name="priority" value={form.priority} onChange={handleChange}>
+        <select
+          name="priority"
+          value={form.priority}
+          onChange={handleChange}
+        >
           <option value="LOW">LOW</option>
           <option value="MEDIUM">MEDIUM</option>
           <option value="HIGH">HIGH</option>
@@ -122,11 +161,15 @@ function App() {
         />
 
         <button type="submit">
-          {editingId ? "Update task" : "Add task"}
+          {editingId ? "Update Task" : "Add Task"}
         </button>
 
         {editingId && (
-          <button type="button" onClick={resetForm}>
+          <button
+            type="button"
+            onClick={resetForm}
+            style={{ marginLeft: "5px" }}
+          >
             Cancel
           </button>
         )}
